@@ -2,114 +2,171 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Human Resource System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Attendance Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier"></script>
 
     <style>
-        :root { --p: #3498db; --s: #2ecc71; --bg: #121212; --card: #1e1e1e; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding-bottom: 100px; display: flex; flex-direction: column; align-items: center; }
+        :root { --p: #3498db; --s: #2ecc71; --bg: #000000; --card: #1c1c1e; }
         
-        /* Camera Area */
-        #video-container { width: 100%; max-width: 500px; position: relative; border-bottom: 3px solid var(--p); line-height: 0; }
-        video { width: 100%; height: auto; background: #000; }
-        
-        /* Floating Result */
-        .res-box { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 10px 25px; border-radius: 30px; border: 1px solid var(--s); backdrop-filter: blur(10px); }
-        #result { font-size: 1.4rem; font-weight: bold; color: var(--s); text-shadow: 0 0 10px rgba(46, 204, 113, 0.5); }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-        /* Training Form (Ẩn hiện linh hoạt) */
-        .admin-panel { padding: 20px; width: 90%; max-width: 450px; background: var(--card); margin-top: 20px; border-radius: 15px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #2c3e50; color: white; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); 
+            color: white; 
+            margin: 0; 
+            display: flex;
+            justify-content: center; /* Căn giữa ngang */
+            align-items: center;     /* Căn giữa dọc */
+            height: 100vh;           /* Full chiều cao màn hình */
+            overflow: hidden; 
+        }
+
+        /* Khung Camera Chính giữa */
+        #video-container { 
+            width: 85vw; 
+            max-width: 350px; 
+            aspect-ratio: 3 / 4; 
+            position: relative; 
+            border-radius: 40px; 
+            overflow: hidden; 
+            border: 3px solid var(--p); 
+            box-shadow: 0 0 40px rgba(52, 152, 219, 0.4);
+            background: #111;
+        }
+
+        video { width: 100%; height: 100%; object-fit: cover; }
+
+        /* Kết quả nổi trên Cam */
+        .res-box { 
+            position: absolute; 
+            bottom: 30px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: rgba(0,0,0,0.7); 
+            padding: 8px 25px; 
+            border-radius: 25px; 
+            border: 1px solid var(--s); 
+            backdrop-filter: blur(10px);
+            z-index: 5;
+        }
+        #result { font-size: 1.2rem; font-weight: bold; color: var(--s); }
+
+        /* Panel quản lý & Nhật ký (Ẩn mặc định) */
+        .overlay-panel {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg);
+            z-index: 100;
+            padding: 30px;
+            display: none; /* Ẩn */
+            overflow-y: auto;
+        }
+        .show { display: block; }
+
+        input { width: 100%; padding: 15px; margin: 15px 0; border-radius: 12px; border: none; background: #2c2c2e; color: white; font-size: 1rem; }
         
-        /* Bottom Menu Navigation */
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: rgba(30,30,30,0.9); backdrop-filter: blur(20px); display: flex; justify-content: space-around; padding: 15px 0; border-top: 1px solid #333; z-index: 999; }
-        .nav-item { display: flex; flex-direction: column; align-items: center; cursor: pointer; color: #888; transition: 0.3s; }
+        /* Menu Bottom Nav */
+        .bottom-nav { 
+            position: fixed; 
+            bottom: 20px; 
+            width: 90%; 
+            max-width: 400px;
+            background: rgba(28, 28, 30, 0.8); 
+            backdrop-filter: blur(20px); 
+            display: flex; 
+            justify-content: space-around; 
+            padding: 12px; 
+            border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 1000;
+        }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #8e8e93; font-size: 0.65rem; }
         .nav-item.active { color: var(--p); }
-        .nav-icon { font-size: 1.5rem; }
-        .nav-text { font-size: 0.7rem; margin-top: 4px; }
+        .nav-icon { font-size: 1.4rem; margin-bottom: 4px; }
 
-        /* Log List */
-        #log-list { width: 90%; max-width: 450px; margin-top: 20px; }
-        .log-item { display: flex; justify-content: space-between; padding: 12px; background: var(--card); margin-bottom: 8px; border-radius: 8px; border-left: 4px solid var(--s); font-size: 0.9rem; }
+        /* Log Item */
+        .log-item { background: #2c2c2e; padding: 15px; border-radius: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; }
+        .close-btn { position: absolute; top: 20px; right: 20px; font-size: 1.5rem; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div id="video-container">
         <video autoplay playsinline muted id="video"></video>
-        <div class="res-box"><div id="result">Đang quét...</div></div>
+        <div class="res-box"><div id="result">ĐANG QUÉT...</div></div>
     </div>
 
-    <div class="admin-panel" id="admin-section">
-        <small id="status" style="color: #f1c40f;">Đang tải AI...</small>
-        <input type="text" id="staff-name" placeholder="Nhập họ tên nhân viên mới...">
-        <div style="display: flex; gap: 10px;">
-            <button onclick="train(0)" style="flex:1; background:var(--p); color:white; padding:10px; border-radius:5px; border:none;">Dạy khuôn mặt này</button>
-            <button onclick="saveDataset()" style="flex:1; background:var(--s); color:white; padding:10px; border-radius:5px; border:none;">Lưu bộ não</button>
-        </div>
+    <div id="panel-admin" class="overlay-panel">
+        <span class="close-btn" onclick="closePanels()">✕</span>
+        <h2>⚙️ Quản lý nhân sự</h2>
+        <p id="status" style="color: #f1c40f;">Đang tải AI...</p>
+        <input type="text" id="staff-name" placeholder="Nhập tên nhân viên...">
+        <button onclick="train()" style="width:100%; padding:15px; background:var(--p); border:none; border-radius:12px; color:white; font-weight:bold;">📸 DẠY KHUÔN MẶT</button>
+        <button onclick="saveDataset()" style="width:100%; padding:15px; background:var(--s); border:none; border-radius:12px; color:white; font-weight:bold; margin-top:10px;">💾 LƯU BỘ NÃO</button>
     </div>
 
-    <div id="log-list"></div>
+    <div id="panel-log" class="overlay-panel">
+        <span class="close-btn" onclick="closePanels()">✕</span>
+        <h2>🕒 Nhật ký chấm công</h2>
+        <div id="log-list"></div>
+    </div>
 
     <nav class="bottom-nav">
-        <div class="nav-item active" onclick="showSection('cam')">
-            <span class="nav-icon">📸</span><span class="nav-text">Chấm công</span>
+        <div class="nav-item" onclick="closePanels()">
+            <span class="nav-icon">📸</span><span>Camera</span>
+        </div>
+        <div class="nav-item" onclick="openPanel('panel-log')">
+            <span class="nav-icon">📋</span><span>Nhật ký</span>
         </div>
         <div class="nav-item" onclick="exportExcel()">
-            <span class="nav-icon">📊</span><span class="nav-text">Xuất Excel</span>
+            <span class="nav-icon">📊</span><span>Xuất Excel</span>
         </div>
-        <div class="nav-item" onclick="switchCam()">
-            <span class="nav-icon">🔄</span><span class="nav-text">Đổi Cam</span>
-        </div>
-        <div class="nav-item" onclick="toggleAdmin()">
-            <span class="nav-icon">⚙️</span><span class="nav-text">Dạy AI</span>
+        <div class="nav-item" onclick="openPanel('panel-admin')">
+            <span class="nav-icon">⚙️</span><span>Cài đặt</span>
         </div>
     </nav>
 
     <script>
         const video = document.getElementById('video');
-        const logList = document.getElementById('log-list');
         const classifier = knnClassifier.create();
         let net, videoStream;
-        let currentFacing = 'user';
-        let attendanceDB = {};
+        let attendanceHistory = {};
 
         async function setupCam() {
             if (videoStream) videoStream.getTracks().forEach(t => t.stop());
-            videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacing }, audio: false });
+            videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
             video.srcObject = videoStream;
-            video.style.transform = currentFacing === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
         }
 
-        async function switchCam() {
-            currentFacing = currentFacing === 'user' ? 'environment' : 'user';
-            await setupCam();
+        function openPanel(id) {
+            closePanels();
+            document.getElementById(id).classList.add('show');
         }
 
-        function toggleAdmin() {
-            const panel = document.getElementById('admin-section');
-            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        function closePanels() {
+            document.querySelectorAll('.overlay-panel').forEach(p => p.classList.remove('show'));
         }
 
-        async function train(id) {
-            const name = document.getElementById('staff-name').value || "Nhân viên chưa đặt tên";
+        async function train() {
+            const name = document.getElementById('staff-name').value || "Ẩn danh";
             const activation = net.infer(video, true);
-            classifier.addExample(activation, name); // KNN hỗ trợ dùng String làm Label luôn!
-            document.getElementById('status').innerText = "✅ Đã học mặt: " + name;
+            classifier.addExample(activation, name);
+            document.getElementById('status').innerText = "✅ Đã học: " + name;
         }
 
         function record(name) {
             const now = Date.now();
-            if (attendanceDB[name] && (now - attendanceDB[name] < 10000)) return; // Nghỉ 10s mới chấm lại
-            attendanceDB[name] = now;
+            if (attendanceHistory[name] && (now - attendanceHistory[name] < 10000)) return;
+            attendanceHistory[name] = now;
             
             const item = document.createElement('div');
             item.className = 'log-item';
             item.innerHTML = `<span><strong>${name}</strong></span> <span>${new Date().toLocaleTimeString('vi-VN')}</span>`;
-            logList.prepend(item);
+            document.getElementById('log-list').prepend(item);
         }
 
         async function predict() {
@@ -120,20 +177,20 @@
                     document.getElementById('result').innerText = res.label;
                     record(res.label);
                 } else {
-                    document.getElementById('result').innerText = "Đang quét...";
+                    document.getElementById('result').innerText = "ĐANG QUÉT...";
                 }
             }
             requestAnimationFrame(predict);
         }
 
         function exportExcel() {
-            let csv = "data:text/csv;charset=utf-8,Họ Tên,Giờ Có Mặt\n";
+            let csv = "data:text/csv;charset=utf-8,Ho Ten,Gio Co Mat\n";
             document.querySelectorAll('.log-item').forEach(row => {
                 csv += row.querySelector('strong').innerText + "," + row.querySelectorAll('span')[1].innerText + "\n";
             });
             const link = document.createElement("a");
             link.href = encodeURI(csv);
-            link.download = "Bao_cao_nhan_su.csv";
+            link.download = `Bao_cao_${new Date().toLocaleDateString()}.csv`;
             link.click();
         }
 
@@ -150,9 +207,8 @@
         async function main() {
             await setupCam();
             net = await mobilenet.load();
-            document.getElementById('status').innerText = "Hệ thống sẵn sàng!";
+            document.getElementById('status').innerText = "AI sẵn sàng!";
             
-            // Tự động nạp bộ não nếu có
             try {
                 const res = await fetch('./face_data.json');
                 const json = await res.json();
