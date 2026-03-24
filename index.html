@@ -54,7 +54,7 @@
     <div class="controls">
         <button class="btn-sep" onclick="addExample(0)">BOSS</button>
         <button class="btn-nv" onclick="addExample(1)">STAFF</button>
-        <button class="btn-switch" onclick="switchCamera()">🔄 SWITCH CAMERAS (FRONT/BEHIND)</button>
+        <button class="btn-switch" onclick="switchCamera()"> SWITCH CAMERAS (FRONT/BEHIND)</button>
         <button class="btn-save" onclick="saveDataset()">STORING RESOURCES</button>
     </div>
 
@@ -91,9 +91,9 @@
     // 2. Chuyển đổi Camera
     async function switchCamera() {
         currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
-        status.innerText = "Đang chuyển camera...";
+        status.innerText = "SWITCHING CAMERA.....";
         await setupCamera();
-        status.innerText = "Sẵn sàng với Cam " + (currentFacingMode === 'user' ? "Trước" : "Sau");
+        status.innerText = "Camera ready..." + (currentFacingMode === 'user' ? "Front" : "Behind");
     }
 
     // 3. Ghi Log (Chặn trùng trong 5 phút)
@@ -118,7 +118,7 @@
         if (classifier.getNumClasses() > 0) {
             const activation = net.infer(video, true);
             const result = await classifier.predictClass(activation);
-            const names = ['SẾP TỔNG', 'NHÂN VIÊN A'];
+            const names = ['BOSS', ''];
             const confidence = result.confidences[result.label];
 
             if (confidence > 0.85) { // Độ tin cậy trên 85%
@@ -151,12 +151,12 @@
 
     // 6. KHỞI ĐỘNG VÀ TỰ NẠP FILE JSON
     async function main() {
-        status.innerText = "Đang nạp AI...";
+        status.innerText = "Loading AI....";
         await setupCamera();
         net = await mobilenet.load();
 
         try {
-            status.innerText = "Đang nạp dữ liệu nhân sự...";
+            status.innerText = "Storing data....";
             const response = await fetch('./face_data.json');
             const datasetJson = await response.json();
             const dataset = {};
@@ -164,9 +164,9 @@
                 dataset[key] = tf.tensor2d(datasetJson[key], [datasetJson[key].length / 1024, 1024]);
             });
             classifier.setClassifierDataset(dataset);
-            status.innerText = "✅ HỆ THỐNG ĐÃ SẴN SÀNG!";
+            status.innerText = "SYSTEM READY";
         } catch (err) {
-            status.innerText = "⚠️ Chưa có dữ liệu. Hãy dạy mặt rồi Lưu file!";
+            status.innerText = "No data available yet. Please train the AI ​​and save the file!";
         }
 
         predict();
