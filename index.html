@@ -47,19 +47,19 @@
     </div>
 
     <div class="status-box">
-        <div id="status">Đang tải AI...</div>
-        <div id="result">HỆ THỐNG SẴN SÀNG</div>
+        <div id="status">Loading AI...</div>
+        <div id="result">SYSTEM READY</div>
     </div>
 
     <div class="controls">
-        <button class="btn-sep" onclick="addExample(0)">👨‍💼 DẠY MẶT SẾP</button>
-        <button class="btn-nv" onclick="addExample(1)">👥 DẠY NHÂN VIÊN A</button>
-        <button class="btn-switch" onclick="switchCamera()">🔄 ĐỔI CAMERA (TRƯỚC/SAU)</button>
-        <button class="btn-save" onclick="saveDataset()">💾 LƯU BỘ NÃO NHÂN SỰ</button>
+        <button class="btn-sep" onclick="addExample(0)">BOSS</button>
+        <button class="btn-nv" onclick="addExample(1)">STAFF</button>
+        <button class="btn-switch" onclick="switchCamera()">🔄 SWITCH CAMERAS (FRONT/BEHIND)</button>
+        <button class="btn-save" onclick="saveDataset()">STORING RESOURCES</button>
     </div>
 
     <div id="attendance-log">
-        <strong style="color: var(--primary);">🕒 NHẬT KÝ CHẤM CÔNG</strong>
+        <strong style="color: var(--primary);">ATTENDANCE LOG</strong>
         <div class="log-list" id="log-list">
             </div>
     </div>
@@ -100,17 +100,17 @@
         // 2. Đổi Camera
         async function switchCamera() {
             currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
-            status.innerText = "Đang chuyển camera...";
+            status.innerText = "Switching cameras...";
             await setupCamera();
-            status.innerText = "Đã chuyển sang Camera " + (currentFacingMode === 'user' ? "Trước" : "Sau");
+            status.innerText = "Switched to Camera " + (currentFacingMode === 'user' ? "Front" : "Behind");
         }
 
         // 3. Huấn luyện (Train)
         async function addExample(classId) {
             const activation = net.infer(video, true);
             classifier.addExample(activation, classId);
-            const label = classId === 0 ? "Sếp" : "Nhân viên A";
-            status.innerText = `✅ Đã học 1 mẫu cho: ${label}`;
+            const label = classId === 0 ? "Boss" : "Staff";
+            status.innerText = `Learned 1 pattern for: ${label}`;
         }
 
         // Tạo một "cuốn sổ tạm" để nhớ xem ai vừa chấm công lúc nào
@@ -123,7 +123,7 @@ function recordAttendance(name) {
     // KIỂM TRA: Nếu người này đã chấm công và chưa qua thời gian chờ -> BỎ QUA
     if (attendanceHistory[name] && (now - attendanceHistory[name] < waitTime)) {
         const remaining = Math.ceil((waitTime - (now - attendanceHistory[name])) / 1000);
-        status.innerText = `⏳ ${name} vừa chấm xong. Đợi ${remaining}s nữa để tiếp tục.`;
+        status.innerText = `⏳ ${name} Just finished grading. Wait. ${remaining}s more to continue.`;
         return; 
     }
 
@@ -136,7 +136,7 @@ function recordAttendance(name) {
     item.innerHTML = `<span>✅ <strong>${name}</strong></span> <span>${timeStr}</span>`;
     logList.prepend(item);
     
-    status.innerText = `🎉 Chúc mừng ${name} đã chấm công thành công!`;
+    status.innerText = `${name} for successfully clocking in!`;
 }
 
         // 5. Dự đoán (Loop liên tục)
@@ -145,7 +145,7 @@ function recordAttendance(name) {
                 const activation = net.infer(video, true);
                 const result = await classifier.predictClass(activation);
                 
-                const names = ['SẾP TỔNG', 'NHÂN VIÊN A'];
+                const names = ['Boss', 'Staff A'];
                 const confidence = result.confidences[result.label];
 
                 if (confidence > 0.9) {
@@ -154,7 +154,7 @@ function recordAttendance(name) {
                     resultText.style.color = "#2ecc71";
                     recordAttendance(person);
                 } else {
-                    resultText.innerText = "ĐANG QUÉT...";
+                    resultText.innerText = "SCANNING IN PROGRESS...";
                     resultText.style.color = "white";
                 }
             }
@@ -178,13 +178,13 @@ function recordAttendance(name) {
 
         // Khởi động
         async function main() {
-    status.innerText = "Đang nạp bộ não AI...";
+    status.innerText = "Charging the AI ​​brain...";
     await setupCamera();
     net = await mobilenet.load();
 
     // --- ĐOẠN NẠP DỮ LIỆU TỰ ĐỘNG ---
     try {
-        status.innerText = "Đang tải dữ liệu nhân sự...";
+        status.innerText = "Loading data...";
         const response = await fetch('./face_data.json');
         const datasetJson = await response.json();
         
@@ -194,9 +194,9 @@ function recordAttendance(name) {
         });
         
         classifier.setClassifierDataset(dataset);
-        status.innerText = "✅ Hệ thống đã sẵn sàng!";
+        status.innerText = "The system is ready!";
     } catch (err) {
-        status.innerText = "⚠️ Chưa có dữ liệu. Hãy dạy AI rồi lưu file!";
+        status.innerText = "No data available yet. Please train the AI ​​and save the file!";
     }
     // -------------------------------
 
