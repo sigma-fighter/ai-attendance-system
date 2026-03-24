@@ -3,176 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Attendance System</title>
-    
+    <title>AI Human Resource System</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier"></script>
 
     <style>
-        :root { --primary: #3498db; --success: #2ecc71; --danger: #e74c3c; --bg: #121212; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        :root { --p: #3498db; --s: #2ecc71; --bg: #121212; --card: #1e1e1e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding-bottom: 100px; display: flex; flex-direction: column; align-items: center; }
         
-        /* Video Container */
-        #video-container { position: relative; width: 100%; max-width: 450px; border-radius: 20px; overflow: hidden; border: 4px solid var(--primary); box-shadow: 0 0 20px rgba(52, 152, 219, 0.3); background: #000; }
-        video { width: 100%; display: block; object-fit: cover; }
+        /* Camera Area */
+        #video-container { width: 100%; max-width: 500px; position: relative; border-bottom: 3px solid var(--p); line-height: 0; }
+        video { width: 100%; height: auto; background: #000; }
         
-        /* Thông báo trạng thái */
-        .status-box { background: #1e1e1e; padding: 15px; border-radius: 12px; margin: 15px 0; width: 100%; max-width: 420px; text-align: center; border: 1px solid #333; }
-        #status { font-size: 0.9rem; color: #f1c40f; margin-bottom: 5px; }
-        #result { font-size: 1.6rem; font-weight: bold; color: var(--success); }
+        /* Floating Result */
+        .res-box { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 10px 25px; border-radius: 30px; border: 1px solid var(--s); backdrop-filter: blur(10px); }
+        #result { font-size: 1.4rem; font-weight: bold; color: var(--s); text-shadow: 0 0 10px rgba(46, 204, 113, 0.5); }
 
-        /* Nút bấm */
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 450px; }
-        button { padding: 15px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; color: white; transition: 0.3s; font-size: 0.9rem; }
-        button:active { transform: scale(0.95); }
-        .btn-sep { background: var(--primary); }
-        .btn-nv { background: #8e44ad; }
-        .btn-switch { background: #555; grid-column: span 2; }
-        .btn-save { background: var(--success); grid-column: span 2; margin-top: 10px; }
+        /* Training Form (Ẩn hiện linh hoạt) */
+        .admin-panel { padding: 20px; width: 90%; max-width: 450px; background: var(--card); margin-top: 20px; border-radius: 15px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #2c3e50; color: white; box-sizing: border-box; }
+        
+        /* Bottom Menu Navigation */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: rgba(30,30,30,0.9); backdrop-filter: blur(20px); display: flex; justify-content: space-around; padding: 15px 0; border-top: 1px solid #333; z-index: 999; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; cursor: pointer; color: #888; transition: 0.3s; }
+        .nav-item.active { color: var(--p); }
+        .nav-icon { font-size: 1.5rem; }
+        .nav-text { font-size: 0.7rem; margin-top: 4px; }
 
-        /* Lịch sử chấm công */
-        #attendance-log { width: 100%; max-width: 450px; margin-top: 20px; background: #1e1e1e; border-radius: 12px; padding: 15px; border: 1px solid #333; box-sizing: border-box; }
-        .log-list { margin-top: 10px; max-height: 200px; overflow-y: auto; }
-        .log-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #333; font-size: 0.95rem; animation: fadeIn 0.5s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Log List */
+        #log-list { width: 90%; max-width: 450px; margin-top: 20px; }
+        .log-item { display: flex; justify-content: space-between; padding: 12px; background: var(--card); margin-bottom: 8px; border-radius: 8px; border-left: 4px solid var(--s); font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
-    <h2 style="margin-bottom: 10px;">AI ATTENDANCE SYSTEM</h2>
-    
     <div id="video-container">
         <video autoplay playsinline muted id="video"></video>
+        <div class="res-box"><div id="result">Đang quét...</div></div>
     </div>
 
-    <div class="status-box">
-        <div id="status">Loading AI...</div>
-        <div id="result">SYSTEM READY</div>
+    <div class="admin-panel" id="admin-section">
+        <small id="status" style="color: #f1c40f;">Đang tải AI...</small>
+        <input type="text" id="staff-name" placeholder="Nhập họ tên nhân viên mới...">
+        <div style="display: flex; gap: 10px;">
+            <button onclick="train(0)" style="flex:1; background:var(--p); color:white; padding:10px; border-radius:5px; border:none;">Dạy khuôn mặt này</button>
+            <button onclick="saveDataset()" style="flex:1; background:var(--s); color:white; padding:10px; border-radius:5px; border:none;">Lưu bộ não</button>
+        </div>
     </div>
 
-    <div class="controls">
-        <button class="btn-sep" onclick="addExample(0)">BOSS</button>
-        <button class="btn-nv" onclick="addExample(1)">STAFF</button>
-        <button class="btn-switch" onclick="switchCamera()"> SWITCH CAMERAS (FRONT/BEHIND)</button>
-        <button class="btn-save" onclick="saveDataset()">STORING RESOURCES</button>
-    </div>
+    <div id="log-list"></div>
 
-    <div id="attendance-log">
-        <strong style="color: var(--primary);">ATTENDANCE LOG</strong>
-        <div class="log-list" id="log-list">
-            </div>
-    </div>
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="showSection('cam')">
+            <span class="nav-icon">📸</span><span class="nav-text">Chấm công</span>
+        </div>
+        <div class="nav-item" onclick="exportExcel()">
+            <span class="nav-icon">📊</span><span class="nav-text">Xuất Excel</span>
+        </div>
+        <div class="nav-item" onclick="switchCam()">
+            <span class="nav-icon">🔄</span><span class="nav-text">Đổi Cam</span>
+        </div>
+        <div class="nav-item" onclick="toggleAdmin()">
+            <span class="nav-icon">⚙️</span><span class="nav-text">Dạy AI</span>
+        </div>
+    </nav>
 
     <script>
-    const video = document.getElementById('video');
-    const status = document.getElementById('status');
-    const resultText = document.getElementById('result');
-    const logList = document.getElementById('log-list');
-    
-    let classifier = knnClassifier.create();
-    let net;
-    let videoStream = null;
-    let currentFacingMode = 'user'; 
-    let attendanceHistory = {}; // Bộ nhớ tạm để chặn chấm công liên tục
+        const video = document.getElementById('video');
+        const logList = document.getElementById('log-list');
+        const classifier = knnClassifier.create();
+        let net, videoStream;
+        let currentFacing = 'user';
+        let attendanceDB = {};
 
-    // 1. Cấu hình Camera
-    async function setupCamera() {
-        if (videoStream) {
-            videoStream.getTracks().forEach(track => track.stop());
-        }
-        const constraints = { video: { facingMode: currentFacingMode }, audio: false };
-        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = videoStream;
-        video.style.transform = currentFacingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
-        return new Promise(resolve => video.onloadedmetadata = () => resolve());
-    }
-
-    // 2. Chuyển đổi Camera
-    async function switchCamera() {
-        currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
-        status.innerText = "SWITCHING CAMERA.....";
-        await setupCamera();
-        status.innerText = "Camera ready..." + (currentFacingMode === 'user' ? "Front" : "Behind");
-    }
-
-    // 3. Ghi Log (Chặn trùng trong 5 phút)
-    function recordAttendance(name) {
-        const now = Date.now();
-        const waitTime = 5 * 60 * 1000; // 5 phút mới cho chấm lại
-
-        if (attendanceHistory[name] && (now - attendanceHistory[name] < waitTime)) {
-            return; // Nếu chưa đủ 5 phút thì không ghi thêm vào log
+        async function setupCam() {
+            if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+            videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacing }, audio: false });
+            video.srcObject = videoStream;
+            video.style.transform = currentFacing === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
         }
 
-        attendanceHistory[name] = now;
-        const timeStr = new Date().toLocaleTimeString('vi-VN');
-        const item = document.createElement('div');
-        item.className = 'log-item';
-        item.innerHTML = `<span>✅ <strong>${name}</strong></span> <span>${timeStr}</span>`;
-        logList.prepend(item);
-    }
+        async function switchCam() {
+            currentFacing = currentFacing === 'user' ? 'environment' : 'user';
+            await setupCam();
+        }
 
-    // 4. Dự đoán
-    async function predict() {
-        if (classifier.getNumClasses() > 0) {
+        function toggleAdmin() {
+            const panel = document.getElementById('admin-section');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function train(id) {
+            const name = document.getElementById('staff-name').value || "Nhân viên chưa đặt tên";
             const activation = net.infer(video, true);
-            const result = await classifier.predictClass(activation);
-            const names = ['BOSS', ''];
-            const confidence = result.confidences[result.label];
+            classifier.addExample(activation, name); // KNN hỗ trợ dùng String làm Label luôn!
+            document.getElementById('status').innerText = "✅ Đã học mặt: " + name;
+        }
 
-            if (confidence > 0.85) { // Độ tin cậy trên 85%
-                const person = names[result.label];
-                resultText.innerText = person;
-                resultText.style.color = "#2ecc71";
-                recordAttendance(person);
-            } else {
-                resultText.innerText = "ĐANG QUÉT...";
-                resultText.style.color = "white";
+        function record(name) {
+            const now = Date.now();
+            if (attendanceDB[name] && (now - attendanceDB[name] < 10000)) return; // Nghỉ 10s mới chấm lại
+            attendanceDB[name] = now;
+            
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.innerHTML = `<span><strong>${name}</strong></span> <span>${new Date().toLocaleTimeString('vi-VN')}</span>`;
+            logList.prepend(item);
+        }
+
+        async function predict() {
+            if (classifier.getNumClasses() > 0) {
+                const activation = net.infer(video, true);
+                const res = await classifier.predictClass(activation);
+                if (res.confidences[res.label] > 0.85) {
+                    document.getElementById('result').innerText = res.label;
+                    record(res.label);
+                } else {
+                    document.getElementById('result').innerText = "Đang quét...";
+                }
             }
+            requestAnimationFrame(predict);
         }
-        requestAnimationFrame(predict);
-    }
 
-    // 5. Lưu bộ não (Dùng để huấn luyện lại khi cần)
-    function saveDataset() {
-        const dataset = classifier.getClassifierDataset();
-        const datasetObj = {};
-        Object.keys(dataset).forEach((key) => {
-            datasetObj[key] = Array.from(dataset[key].dataSync());
-        });
-        const blob = new Blob([JSON.stringify(datasetObj)], {type: "application/json"});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = "face_data.json";
-        a.click();
-    }
-
-    // 6. KHỞI ĐỘNG VÀ TỰ NẠP FILE JSON
-    async function main() {
-        status.innerText = "Loading AI....";
-        await setupCamera();
-        net = await mobilenet.load();
-
-        try {
-            status.innerText = "Storing data....";
-            const response = await fetch('./face_data.json');
-            const datasetJson = await response.json();
-            const dataset = {};
-            Object.keys(datasetJson).forEach((key) => {
-                dataset[key] = tf.tensor2d(datasetJson[key], [datasetJson[key].length / 1024, 1024]);
+        function exportExcel() {
+            let csv = "data:text/csv;charset=utf-8,Họ Tên,Giờ Có Mặt\n";
+            document.querySelectorAll('.log-item').forEach(row => {
+                csv += row.querySelector('strong').innerText + "," + row.querySelectorAll('span')[1].innerText + "\n";
             });
-            classifier.setClassifierDataset(dataset);
-            status.innerText = "SYSTEM READY";
-        } catch (err) {
-            status.innerText = "No data available yet. Please train the AI ​​and save the file!";
+            const link = document.createElement("a");
+            link.href = encodeURI(csv);
+            link.download = "Bao_cao_nhan_su.csv";
+            link.click();
         }
 
-        predict();
-    }
+        function saveDataset() {
+            const ds = classifier.getClassifierDataset();
+            const obj = {};
+            Object.keys(ds).forEach(k => obj[k] = Array.from(ds[k].dataSync()));
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([JSON.stringify(obj)], {type:"application/json"}));
+            a.download = "face_data.json";
+            a.click();
+        }
 
-    main();
-</script>
+        async function main() {
+            await setupCam();
+            net = await mobilenet.load();
+            document.getElementById('status').innerText = "Hệ thống sẵn sàng!";
+            
+            // Tự động nạp bộ não nếu có
+            try {
+                const res = await fetch('./face_data.json');
+                const json = await res.json();
+                const ds = {};
+                Object.keys(json).forEach(k => ds[k] = tf.tensor2d(json[k], [json[k].length/1024, 1024]));
+                classifier.setClassifierDataset(ds);
+            } catch(e) {}
+            
+            predict();
+        }
+        main();
+    </script>
 </body>
 </html>
