@@ -65,144 +65,114 @@
     </div>
 
     <script>
-        const video = document.getElementById('video');
-        const status = document.getElementById('status');
-        const resultText = document.getElementById('result');
-        const logList = document.getElementById('log-list');
-        
-        let classifier = knnClassifier.create();
-        let net;
-        let videoStream = null;
-        let currentFacingMode = 'user'; // Mặc định cam trước
-        let lastPerson = "";
-        let lastTime = 0;
+    const video = document.getElementById('video');
+    const status = document.getElementById('status');
+    const resultText = document.getElementById('result');
+    const logList = document.getElementById('log-list');
+    
+    let classifier = knnClassifier.create();
+    let net;
+    let videoStream = null;
+    let currentFacingMode = 'user'; 
+    let attendanceHistory = {}; // Bộ nhớ tạm để chặn chấm công liên tục
 
-        // 1. Cấu hình Camera
-        async function setupCamera() {
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-            }
+    // 1. Cấu hình Camera
+    async function setupCamera() {
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+        }
+        const constraints = { video: { facingMode: currentFacingMode }, audio: false };
+        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = videoStream;
+        video.style.transform = currentFacingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+        return new Promise(resolve => video.onloadedmetadata = () => resolve());
+    }
 
-            const constraints = {
-                video: { facingMode: currentFacingMode },
-                audio: false
-            };
+    // 2. Chuyển đổi Camera
+    async function switchCamera() {
+        currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+        status.innerText = "Đang chuyển camera...";
+        await setupCamera();
+        status.innerText = "Sẵn sàng với Cam " + (currentFacingMode === 'user' ? "Trước" : "Sau");
+    }
 
-            videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-            video.srcObject = videoStream;
+    // 3. Ghi Log (Chặn trùng trong 5 phút)
+    function recordAttendance(name) {
+        const now = Date.now();
+        const waitTime = 5 * 60 * 1000; // 5 phút mới cho chấm lại
 
-            // Hiệu ứng soi gương cho cam trước
-            video.style.transform = currentFacingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
-
-            return new Promise(resolve => video.onloadedmetadata = () => resolve());
+        if (attendanceHistory[name] && (now - attendanceHistory[name] < waitTime)) {
+            return; // Nếu chưa đủ 5 phút thì không ghi thêm vào log
         }
 
-        // 2. Đổi Camera
-        async function switchCamera() {
-            currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
-            status.innerText = "Switching cameras...";
-            await setupCamera();
-            status.innerText = "Switched to Camera " + (currentFacingMode === 'user' ? "Front" : "Behind");
-        }
+        attendanceHistory[name] = now;
+        const timeStr = new Date().toLocaleTimeString('vi-VN');
+        const item = document.createElement('div');
+        item.className = 'log-item';
+        item.innerHTML = `<span>✅ <strong>${name}</strong></span> <span>${timeStr}</span>`;
+        logList.prepend(item);
+    }
 
-        // 3. Huấn luyện (Train)
-        async function addExample(classId) {
+    // 4. Dự đoán
+    async function predict() {
+        if (classifier.getNumClasses() > 0) {
             const activation = net.infer(video, true);
-            classifier.addExample(activation, classId);
-            const label = classId === 0 ? "Boss" : "Staff";
-            status.innerText = `Learned 1 pattern for: ${label}`;
-        }
+            const result = await classifier.predictClass(activation);
+            const names = ['SẾP TỔNG', 'NHÂN VIÊN A'];
+            const confidence = result.confidences[result.label];
 
-        // Tạo một "cuốn sổ tạm" để nhớ xem ai vừa chấm công lúc nào
-let attendanceHistory = {}; 
-
-function recordAttendance(name) {
-    const now = Date.now();
-    const waitTime = 5 * 60 * 1000; // 5 phút (đổi thành 3000 nếu muốn thử nghiệm nhanh 3 giây)
-
-    // KIỂM TRA: Nếu người này đã chấm công và chưa qua thời gian chờ -> BỎ QUA
-    if (attendanceHistory[name] && (now - attendanceHistory[name] < waitTime)) {
-        const remaining = Math.ceil((waitTime - (now - attendanceHistory[name])) / 1000);
-        status.innerText = `⏳ ${name} Just finished grading. Wait. ${remaining}s more to continue.`;
-        return; 
-    }
-
-    // Nếu thỏa mãn (người mới hoặc đã hết thời gian chờ) -> GHI DANH
-    attendanceHistory[name] = now; // Cập nhật thời gian chấm mới nhất của người này
-    
-    const timeStr = new Date().toLocaleTimeString('vi-VN');
-    const item = document.createElement('div');
-    item.className = 'log-item';
-    item.innerHTML = `<span>✅ <strong>${name}</strong></span> <span>${timeStr}</span>`;
-    logList.prepend(item);
-    
-    status.innerText = `${name} for successfully clocking in!`;
-}
-
-        // 5. Dự đoán (Loop liên tục)
-        async function predict() {
-            if (classifier.getNumClasses() > 0) {
-                const activation = net.infer(video, true);
-                const result = await classifier.predictClass(activation);
-                
-                const names = ['Boss', 'Staff A'];
-                const confidence = result.confidences[result.label];
-
-                if (confidence > 0.9) {
-                    const person = names[result.label];
-                    resultText.innerText = person;
-                    resultText.style.color = "#2ecc71";
-                    recordAttendance(person);
-                } else {
-                    resultText.innerText = "SCANNING IN PROGRESS...";
-                    resultText.style.color = "white";
-                }
+            if (confidence > 0.85) { // Độ tin cậy trên 85%
+                const person = names[result.label];
+                resultText.innerText = person;
+                resultText.style.color = "#2ecc71";
+                recordAttendance(person);
+            } else {
+                resultText.innerText = "ĐANG QUÉT...";
+                resultText.style.color = "white";
             }
-            requestAnimationFrame(predict);
         }
-
-        // 6. Lưu dữ liệu (Giống bản Soi Cỏ)
-        function saveDataset() {
-            const dataset = classifier.getClassifierDataset();
-            const datasetObj = {};
-            Object.keys(dataset).forEach((key) => {
-                datasetObj[key] = Array.from(dataset[key].dataSync());
-            });
-            const blob = new Blob([JSON.stringify(datasetObj)], {type: "application/json"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = "face_data.json";
-            a.click();
-        }
-
-        // Khởi động
-        async function main() {
-    status.innerText = "Charging the AI ​​brain...";
-    await setupCamera();
-    net = await mobilenet.load();
-
-    // --- ĐOẠN NẠP DỮ LIỆU TỰ ĐỘNG ---
-    try {
-        status.innerText = "Loading data...";
-        const response = await fetch('./face_data.json');
-        const datasetJson = await response.json();
-        
-        const dataset = {};
-        Object.keys(datasetJson).forEach((key) => {
-            dataset[key] = tf.tensor2d(datasetJson[key], [datasetJson[key].length / 1024, 1024]);
-        });
-        
-        classifier.setClassifierDataset(dataset);
-        status.innerText = "The system is ready!";
-    } catch (err) {
-        status.innerText = "No data available yet. Please train the AI ​​and save the file!";
+        requestAnimationFrame(predict);
     }
-    // -------------------------------
 
-    predict();
-}
-        main();
-    </script>
+    // 5. Lưu bộ não (Dùng để huấn luyện lại khi cần)
+    function saveDataset() {
+        const dataset = classifier.getClassifierDataset();
+        const datasetObj = {};
+        Object.keys(dataset).forEach((key) => {
+            datasetObj[key] = Array.from(dataset[key].dataSync());
+        });
+        const blob = new Blob([JSON.stringify(datasetObj)], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "face_data.json";
+        a.click();
+    }
+
+    // 6. KHỞI ĐỘNG VÀ TỰ NẠP FILE JSON
+    async function main() {
+        status.innerText = "Đang nạp AI...";
+        await setupCamera();
+        net = await mobilenet.load();
+
+        try {
+            status.innerText = "Đang nạp dữ liệu nhân sự...";
+            const response = await fetch('./face_data.json');
+            const datasetJson = await response.json();
+            const dataset = {};
+            Object.keys(datasetJson).forEach((key) => {
+                dataset[key] = tf.tensor2d(datasetJson[key], [datasetJson[key].length / 1024, 1024]);
+            });
+            classifier.setClassifierDataset(dataset);
+            status.innerText = "✅ HỆ THỐNG ĐÃ SẴN SÀNG!";
+        } catch (err) {
+            status.innerText = "⚠️ Chưa có dữ liệu. Hãy dạy mặt rồi Lưu file!";
+        }
+
+        predict();
+    }
+
+    main();
+</script>
 </body>
 </html>
