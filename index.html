@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Attendance System - Ngày 1</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier"></script>
+
+    <style>
+        :root { --primary: #3498db; --success: #2ecc71; --danger: #e74c3c; --bg: #121212; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        
+        /* Video Container */
+        #video-container { position: relative; width: 100%; max-width: 450px; border-radius: 20px; overflow: hidden; border: 4px solid var(--primary); box-shadow: 0 0 20px rgba(52, 152, 219, 0.3); background: #000; }
+        video { width: 100%; display: block; object-fit: cover; }
+        
+        /* Thông báo trạng thái */
+        .status-box { background: #1e1e1e; padding: 15px; border-radius: 12px; margin: 15px 0; width: 100%; max-width: 420px; text-align: center; border: 1px solid #333; }
+        #status { font-size: 0.9rem; color: #f1c40f; margin-bottom: 5px; }
+        #result { font-size: 1.6rem; font-weight: bold; color: var(--success); }
+
+        /* Nút bấm */
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 450px; }
+        button { padding: 15px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; color: white; transition: 0.3s; font-size: 0.9rem; }
+        button:active { transform: scale(0.95); }
+        .btn-sep { background: var(--primary); }
+        .btn-nv { background: #8e44ad; }
+        .btn-switch { background: #555; grid-column: span 2; }
+        .btn-save { background: var(--success); grid-column: span 2; margin-top: 10px; }
+
+        /* Lịch sử chấm công */
+        #attendance-log { width: 100%; max-width: 450px; margin-top: 20px; background: #1e1e1e; border-radius: 12px; padding: 15px; border: 1px solid #333; box-sizing: border-box; }
+        .log-list { margin-top: 10px; max-height: 200px; overflow-y: auto; }
+        .log-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #333; font-size: 0.95rem; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <h2 style="margin-bottom: 10px;">🏢 AI ATTENDANCE</h2>
+    
+    <div id="video-container">
+        <video autoplay playsinline muted id="video"></video>
+    </div>
+
+    <div class="status-box">
+        <div id="status">Đang tải AI...</div>
+        <div id="result">HỆ THỐNG SẴN SÀNG</div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-sep" onclick="addExample(0)">👨‍💼 DẠY MẶT SẾP</button>
+        <button class="btn-nv" onclick="addExample(1)">👥 DẠY NHÂN VIÊN A</button>
+        <button class="btn-switch" onclick="switchCamera()">🔄 ĐỔI CAMERA (TRƯỚC/SAU)</button>
+        <button class="btn-save" onclick="saveDataset()">💾 LƯU BỘ NÃO NHÂN SỰ</button>
+    </div>
+
+    <div id="attendance-log">
+        <strong style="color: var(--primary);">🕒 NHẬT KÝ CHẤM CÔNG</strong>
+        <div class="log-list" id="log-list">
+            </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const status = document.getElementById('status');
+        const resultText = document.getElementById('result');
+        const logList = document.getElementById('log-list');
+        
+        let classifier = knnClassifier.create();
+        let net;
+        let videoStream = null;
+        let currentFacingMode = 'user'; // Mặc định cam trước
+        let lastPerson = "";
+        let lastTime = 0;
+
+        // 1. Cấu hình Camera
+        async function setupCamera() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+            }
+
+            const constraints = {
+                video: { facingMode: currentFacingMode },
+                audio: false
+            };
+
+            videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = videoStream;
+
+            // Hiệu ứng soi gương cho cam trước
+            video.style.transform = currentFacingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+
+            return new Promise(resolve => video.onloadedmetadata = () => resolve());
+        }
+
+        // 2. Đổi Camera
+        async function switchCamera() {
+            currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+            status.innerText = "Đang chuyển camera...";
+            await setupCamera();
+            status.innerText = "Đã chuyển sang Camera " + (currentFacingMode === 'user' ? "Trước" : "Sau");
+        }
+
+        // 3. Huấn luyện (Train)
+        async function addExample(classId) {
+            const activation = net.infer(video, true);
+            classifier.addExample(activation, classId);
+            const label = classId === 0 ? "Sếp" : "Nhân viên A";
+            status.innerText = `✅ Đã học 1 mẫu cho: ${label}`;
+        }
+
+        // 4. Ghi Log Chấm Công
+        function recordAttendance(name) {
+            const now = Date.now();
+            // Chỉ ghi log nếu là người mới HOẶC người cũ nhưng sau 5 giây
+            if (name !== lastPerson || (now - lastTime > 5000)) {
+                lastPerson = name;
+                lastTime = now;
+
+                const timeStr = new Date().toLocaleTimeString('vi-VN');
+                const item = document.createElement('div');
+                item.className = 'log-item';
+                item.innerHTML = `<span><strong>${name}</strong></span> <span>${timeStr}</span>`;
+                logList.prepend(item);
+            }
+        }
+
+        // 5. Dự đoán (Loop liên tục)
+        async function predict() {
+            if (classifier.getNumClasses() > 0) {
+                const activation = net.infer(video, true);
+                const result = await classifier.predictClass(activation);
+                
+                const names = ['SẾP TỔNG', 'NHÂN VIÊN A'];
+                const confidence = result.confidences[result.label];
+
+                if (confidence > 0.9) {
+                    const person = names[result.label];
+                    resultText.innerText = person;
+                    resultText.style.color = "#2ecc71";
+                    recordAttendance(person);
+                } else {
+                    resultText.innerText = "ĐANG QUÉT...";
+                    resultText.style.color = "white";
+                }
+            }
+            requestAnimationFrame(predict);
+        }
+
+        // 6. Lưu dữ liệu (Giống bản Soi Cỏ)
+        function saveDataset() {
+            const dataset = classifier.getClassifierDataset();
+            const datasetObj = {};
+            Object.keys(dataset).forEach((key) => {
+                datasetObj[key] = Array.from(dataset[key].dataSync());
+            });
+            const blob = new Blob([JSON.stringify(datasetObj)], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "face_data.json";
+            a.click();
+        }
+
+        // Khởi động
+        async function main() {
+            status.innerText = "Đang nạp bộ não AI...";
+            await setupCamera();
+            net = await mobilenet.load();
+            status.innerText = "Sẵn sàng! Hãy dạy mặt nhân viên.";
+            predict();
+        }
+
+        main();
+    </script>
+</body>
+</html>
