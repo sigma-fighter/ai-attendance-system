@@ -136,12 +136,45 @@
         let net, videoStream;
         let attendanceHistory = {};
 
-        async function setupCam() {
-            if (videoStream) videoStream.getTracks().forEach(t => t.stop());
-            videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-            video.srcObject = videoStream;
-        }
+        // 1. Sửa lại hàm setupCam để linh hoạt hơn
+async function setupCam() {
+    // Tắt luồng cũ trước khi mở luồng mới để tránh xung đột
+    if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+    }
 
+    const constraints = { 
+        video: { facingMode: currentFacing }, 
+        audio: false 
+    };
+
+    try {
+        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = videoStream;
+        
+        // Lật ảnh nếu là cam trước (user), giữ nguyên nếu là cam sau (environment)
+        video.style.transform = currentFacing === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+        
+        return new Promise(resolve => video.onloadedmetadata = () => resolve());
+    } catch (err) {
+        console.error("Lỗi Camera: ", err);
+        alert("Không thể chuyển Camera. Có thể thiết bị không hỗ trợ hoặc trình duyệt đang chặn.");
+    }
+}
+
+// 2. Sửa lại hàm switchCam để gọi lại setupCam đúng cách
+async function switchCam() {
+    // Đổi qua lại giữa 'user' và 'environment'
+    currentFacing = (currentFacing === 'user') ? 'environment' : 'user';
+    
+    // Hiển thị trạng thái cho người dùng biết
+    const statusText = document.getElementById('status');
+    if(statusText) statusText.innerText = "🔄 Đang chuyển Camera...";
+    
+    await setupCam();
+    
+    if(statusText) statusText.innerText = "✅ Đã chuyển sang Camera " + (currentFacing === 'user' ? "Trước" : "Sau");
+}
         function openPanel(id) {
             closePanels();
             document.getElementById(id).classList.add('show');
