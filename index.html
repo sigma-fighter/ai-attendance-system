@@ -113,21 +113,31 @@
             status.innerText = `✅ Đã học 1 mẫu cho: ${label}`;
         }
 
-        // 4. Ghi Log Chấm Công
-        function recordAttendance(name) {
-            const now = Date.now();
-            // Chỉ ghi log nếu là người mới HOẶC người cũ nhưng sau 5 giây
-            if (name !== lastPerson || (now - lastTime > 5000)) {
-                lastPerson = name;
-                lastTime = now;
+        // Tạo một "cuốn sổ tạm" để nhớ xem ai vừa chấm công lúc nào
+let attendanceHistory = {}; 
 
-                const timeStr = new Date().toLocaleTimeString('vi-VN');
-                const item = document.createElement('div');
-                item.className = 'log-item';
-                item.innerHTML = `<span><strong>${name}</strong></span> <span>${timeStr}</span>`;
-                logList.prepend(item);
-            }
-        }
+function recordAttendance(name) {
+    const now = Date.now();
+    const waitTime = 5 * 60 * 1000; // 5 phút (đổi thành 3000 nếu muốn thử nghiệm nhanh 3 giây)
+
+    // KIỂM TRA: Nếu người này đã chấm công và chưa qua thời gian chờ -> BỎ QUA
+    if (attendanceHistory[name] && (now - attendanceHistory[name] < waitTime)) {
+        const remaining = Math.ceil((waitTime - (now - attendanceHistory[name])) / 1000);
+        status.innerText = `⏳ ${name} vừa chấm xong. Đợi ${remaining}s nữa để tiếp tục.`;
+        return; 
+    }
+
+    // Nếu thỏa mãn (người mới hoặc đã hết thời gian chờ) -> GHI DANH
+    attendanceHistory[name] = now; // Cập nhật thời gian chấm mới nhất của người này
+    
+    const timeStr = new Date().toLocaleTimeString('vi-VN');
+    const item = document.createElement('div');
+    item.className = 'log-item';
+    item.innerHTML = `<span>✅ <strong>${name}</strong></span> <span>${timeStr}</span>`;
+    logList.prepend(item);
+    
+    status.innerText = `🎉 Chúc mừng ${name} đã chấm công thành công!`;
+}
 
         // 5. Dự đoán (Loop liên tục)
         async function predict() {
