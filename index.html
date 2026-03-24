@@ -10,85 +10,51 @@
 
     <style>
         :root { --p: #3498db; --s: #2ecc71; --bg: #000000; --card: #1c1c1e; }
-        
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg); 
-            color: white; 
-            margin: 0; 
-            display: flex;
-            justify-content: center; /* Căn giữa ngang */
-            align-items: center;     /* Căn giữa dọc */
-            height: 100vh;           /* Full chiều cao màn hình */
-            overflow: hidden; 
+            background: var(--bg); color: white; margin: 0; 
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; overflow: hidden; 
         }
 
-        /* Khung Camera Chính giữa */
         #video-container { 
-            width: 85vw; 
-            max-width: 350px; 
-            aspect-ratio: 3 / 4; 
-            position: relative; 
-            border-radius: 40px; 
-            overflow: hidden; 
-            border: 3px solid var(--p); 
-            box-shadow: 0 0 40px rgba(52, 152, 219, 0.4);
+            width: 85vw; max-width: 350px; aspect-ratio: 3 / 4; 
+            position: relative; border-radius: 40px; overflow: hidden; 
+            border: 3px solid var(--p); box-shadow: 0 0 40px rgba(52, 152, 219, 0.4);
             background: #111;
         }
 
         video { width: 100%; height: 100%; object-fit: cover; }
 
-        /* Kết quả nổi trên Cam */
         .res-box { 
-            position: absolute; 
-            bottom: 30px; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            background: rgba(0,0,0,0.7); 
-            padding: 8px 25px; 
-            border-radius: 25px; 
-            border: 1px solid var(--s); 
-            backdrop-filter: blur(10px);
-            z-index: 5;
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); 
+            background: rgba(0,0,0,0.7); padding: 8px 25px; border-radius: 25px; 
+            border: 1px solid var(--s); backdrop-filter: blur(10px); z-index: 5;
         }
-        #result { font-size: 1.2rem; font-weight: bold; color: var(--s); }
+        #result { font-size: 1.2rem; font-weight: bold; color: var(--s); text-align: center; min-width: 150px; }
 
-        /* Panel quản lý & Nhật ký (Ẩn mặc định) */
         .overlay-panel {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg);
-            z-index: 100;
-            padding: 30px;
-            display: none; /* Ẩn */
-            overflow-y: auto;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); z-index: 100; padding: 30px; display: none; overflow-y: auto;
         }
-        .show { display: block; }
+        .show { display: block !important; }
 
         input { width: 100%; padding: 15px; margin: 15px 0; border-radius: 12px; border: none; background: #2c2c2e; color: white; font-size: 1rem; }
-        
-        /* Menu Bottom Nav */
+        button { cursor: pointer; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
+
         .bottom-nav { 
-            position: fixed; 
-            bottom: 20px; 
-            width: 90%; 
-            max-width: 400px;
-            background: rgba(28, 28, 30, 0.8); 
-            backdrop-filter: blur(20px); 
-            display: flex; 
-            justify-content: space-around; 
-            padding: 12px; 
-            border-radius: 30px;
-            border: 1px solid rgba(255,255,255,0.1);
-            z-index: 1000;
+            position: fixed; bottom: 20px; width: 90%; max-width: 400px;
+            background: rgba(28, 28, 30, 0.8); backdrop-filter: blur(20px); 
+            display: flex; justify-content: space-around; padding: 12px; 
+            border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); z-index: 1000;
         }
-        .nav-item { display: flex; flex-direction: column; align-items: center; color: #8e8e93; font-size: 0.65rem; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #8e8e93; font-size: 0.65rem; cursor: pointer; }
         .nav-item.active { color: var(--p); }
         .nav-icon { font-size: 1.4rem; margin-bottom: 4px; }
 
-        /* Log Item */
         .log-item { background: #2c2c2e; padding: 15px; border-radius: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; }
         .close-btn { position: absolute; top: 20px; right: 20px; font-size: 1.5rem; cursor: pointer; }
     </style>
@@ -103,7 +69,7 @@
     <div id="panel-admin" class="overlay-panel">
         <span class="close-btn" onclick="closePanels()">✕</span>
         <h2>⚙️ Quản lý nhân sự</h2>
-        <p id="status" style="color: #f1c40f;">Đang tải AI...</p>
+        <p id="status" style="color: #f1c40f;">Đang nạp AI...</p>
         <input type="text" id="staff-name" placeholder="Nhập tên nhân viên...">
         <button onclick="train()" style="width:100%; padding:15px; background:var(--p); border:none; border-radius:12px; color:white; font-weight:bold;">📸 DẠY KHUÔN MẶT</button>
         <button onclick="saveDataset()" style="width:100%; padding:15px; background:var(--s); border:none; border-radius:12px; color:white; font-weight:bold; margin-top:10px;">💾 LƯU BỘ NÃO</button>
@@ -117,10 +83,7 @@
 
     <nav class="bottom-nav">
         <div class="nav-item" onclick="switchCam()">
-    <span class="nav-icon">🔄</span><span>Đổi Cam</span>
-</div>
-        <div class="nav-item" onclick="closePanels()">
-            <span class="nav-icon">📸</span><span>Camera</span>
+            <span class="nav-icon">🔄</span><span>Đổi Cam</span>
         </div>
         <div class="nav-item" onclick="openPanel('panel-log')">
             <span class="nav-icon">📋</span><span>Nhật ký</span>
@@ -134,185 +97,137 @@
     </nav>
 
     <script>
-    const video = document.getElementById('video');
-    const status = document.getElementById('status');
-    const resultText = document.getElementById('result');
-    const logList = document.getElementById('log-list');
-    
-    let classifier = knnClassifier.create();
-    let net;
-    let videoStream = null;
-    let currentFacingMode = 'user'; // Mặc định cam trước
-    let attendanceHistory = {}; 
+        const video = document.getElementById('video');
+        const statusText = document.getElementById('status');
+        const resultLabel = document.getElementById('result');
+        const classifier = knnClassifier.create();
+        let net;
+        let videoStream = null;
+        let currentFacingMode = 'user'; 
+        let attendanceHistory = {}; 
 
-    // 1. HÀM SETUP CAMERA (FIX TRIỆT ĐỂ LỖI MẤT CAM)
-    let videoStream = null;
-let currentFacingMode = 'user'; // Mặc định ban đầu là cam trước
+        // 1. Hàm thiết lập Camera (Fix triệt để)
+        async function setupCam() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+            }
 
-async function setupCam() {
-    // 1. Dọn dẹp luồng cũ (Quan trọng nhất để không mất cam)
-    if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-    }
-
-    // 2. Cấu hình luồng mới
-    const constraints = {
-        video: { 
-            facingMode: currentFacingMode,
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-        },
-        audio: false
-    };
-
-    try {
-        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = videoStream;
-
-        // 3. Hiệu ứng lật gương: Cam trước thì lật, Cam sau để nguyên
-        video.style.transform = currentFacingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
-
-        return new Promise(resolve => {
-            video.onloadedmetadata = () => {
-                video.play();
-                resolve();
+            const constraints = {
+                video: { facingMode: currentFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+                audio: false
             };
-        });
-    } catch (err) {
-        console.error("Không thể mở Camera:", err);
-        alert("Lỗi: Không tìm thấy Camera hoặc chưa cấp quyền!");
-    }
-}
 
-// Hàm xử lý khi bấm nút Đổi Cam
-async function switchCam() {
-    // Đảo trạng thái giữa 'user' và 'environment'
-    currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
-    
-    // Hiển thị thông báo tạm thời
-    document.getElementById('result').innerText = "ĐANG ĐỔI CAM...";
-    
-    await setupCam();
-    
-    document.getElementById('result').innerText = "ĐANG QUÉT...";
-}
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = videoStream;
+                video.style.transform = currentFacingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
 
-        const constraints = {
-            video: { 
-                facingMode: currentFacingMode,
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            },
-            audio: false
-        };
-
-        try {
-            videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-            video.srcObject = videoStream;
-
-            // Hiệu ứng soi gương: Cam trước lật, Cam sau để nguyên
-            video.style.transform = currentFacingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
-
-            return new Promise(resolve => {
-                video.onloadedmetadata = () => {
-                    video.play();
-                    resolve();
-                };
-            });
-        } catch (err) {
-            console.error("Lỗi truy cập Camera: ", err);
-            status.innerText = "❌ Lỗi: Không thể mở Camera. Hãy tải lại trang!";
+                return new Promise(resolve => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        resolve();
+                    };
+                });
+            } catch (err) {
+                console.error("Lỗi cam:", err);
+                alert("Không thể mở Camera. Vui lòng cấp quyền!");
+            }
         }
-    }
 
-    
-    // 3. CÁC HÀM PANEL (ẨN/HIỆN)
-    function openPanel(id) {
-        document.querySelectorAll('.overlay-panel').forEach(p => p.classList.remove('show'));
-        document.getElementById(id).classList.add('show');
-    }
+        // 2. Hàm Switch Camera
+        async function switchCam() {
+            closePanels(); // Đảm bảo đóng các bảng để thấy cam
+            currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+            resultLabel.innerText = "ĐANG ĐỔI CAM...";
+            await setupCam();
+            resultLabel.innerText = "ĐANG QUÉT...";
+        }
 
-    function closePanels() {
-        document.querySelectorAll('.overlay-panel').forEach(p => p.classList.remove('show'));
-    }
+        // 3. Quản lý giao diện
+        function openPanel(id) {
+            closePanels();
+            document.getElementById(id).classList.add('show');
+        }
+        function closePanels() {
+            document.querySelectorAll('.overlay-panel').forEach(p => p.classList.remove('show'));
+        }
 
-    // 4. LOGIC CHẤM CÔNG & DẠY AI
-    async function train() {
-        const name = document.getElementById('staff-name').value || "Ẩn danh";
-        const activation = net.infer(video, true);
-        classifier.addExample(activation, name);
-        status.innerText = `✅ Đã học mặt: ${name}`;
-    }
-
-    function record(name) {
-        const now = Date.now();
-        if (attendanceHistory[name] && (now - attendanceHistory[name] < 10000)) return;
-        attendanceHistory[name] = now;
-        
-        const item = document.createElement('div');
-        item.className = 'log-item';
-        item.innerHTML = `<span><strong>${name}</strong></span> <span>${new Date().toLocaleTimeString('vi-VN')}</span>`;
-        document.getElementById('log-list').prepend(item);
-    }
-
-    async function predict() {
-        if (classifier.getNumClasses() > 0 && video.readyState === 4) {
+        // 4. Logic AI
+        async function train() {
+            const name = document.getElementById('staff-name').value || "Ẩn danh";
             const activation = net.infer(video, true);
-            const res = await classifier.predictClass(activation);
-            if (res.confidences[res.label] > 0.85) {
-                resultText.innerText = res.label;
-                record(res.label);
-            } else {
-                resultText.innerText = "ĐANG QUÉT...";
-            }
+            classifier.addExample(activation, name);
+            statusText.innerText = `✅ Đã học mặt: ${name}`;
         }
-        requestAnimationFrame(predict);
-    }
 
-    // 5. LƯU & XUẤT DỮ LIỆU
-    function exportExcel() {
-        let csv = "data:text/csv;charset=utf-8,Ho Ten,Gio Co Mat\n";
-        document.querySelectorAll('.log-item').forEach(row => {
-            csv += row.querySelector('strong').innerText + "," + row.querySelectorAll('span')[1].innerText + "\n";
-        });
-        const link = document.createElement("a");
-        link.href = encodeURI(csv);
-        link.download = `Bao_cao_nhan_su.csv`;
-        link.click();
-    }
-
-    function saveDataset() {
-        const ds = classifier.getClassifierDataset();
-        const obj = {};
-        Object.keys(ds).forEach(k => obj[k] = Array.from(ds[k].dataSync()));
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(new Blob([JSON.stringify(obj)], {type:"application/json"}));
-        a.download = "face_data.json";
-        a.click();
-    }
-
-    // 6. KHỞI ĐỘNG
-    async function main() {
-        status.innerText = "Đang nạp AI...";
-        await setupCamera();
-        net = await mobilenet.load();
-        
-        // Tự động nạp bộ não từ file JSON nếu có
-        try {
-            const res = await fetch('./face_data.json');
-            if (res.ok) {
-                const json = await res.json();
-                const ds = {};
-                Object.keys(json).forEach(k => ds[k] = tf.tensor2d(json[k], [json[k].length/1024, 1024]));
-                classifier.setClassifierDataset(ds);
-                status.innerText = "✅ Đã nạp dữ liệu nhân sự!";
+        async function predict() {
+            if (classifier.getNumClasses() > 0 && video.readyState === 4) {
+                const activation = net.infer(video, true);
+                const res = await classifier.predictClass(activation);
+                if (res.confidences[res.label] > 0.85) {
+                    resultLabel.innerText = res.label;
+                    recordAttendance(res.label);
+                } else {
+                    resultLabel.innerText = "ĐANG QUÉT...";
+                }
             }
-        } catch(e) { console.log("Chưa có file data sẵn."); }
+            requestAnimationFrame(predict);
+        }
 
-        predict();
-    }
+        function recordAttendance(name) {
+            const now = Date.now();
+            if (attendanceHistory[name] && (now - attendanceHistory[name] < 10000)) return;
+            attendanceHistory[name] = now;
+            
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.innerHTML = `<span><strong>${name}</strong></span> <span>${new Date().toLocaleTimeString('vi-VN')}</span>`;
+            document.getElementById('log-list').prepend(item);
+        }
 
-    main();
-</script>
+        // 5. Lưu & Xuất
+        function saveDataset() {
+            const ds = classifier.getClassifierDataset();
+            const obj = {};
+            Object.keys(ds).forEach(k => obj[k] = Array.from(ds[k].dataSync()));
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([JSON.stringify(obj)], {type:"application/json"}));
+            a.download = "face_data.json";
+            a.click();
+        }
+
+        function exportExcel() {
+            let csv = "data:text/csv;charset=utf-8,Ho Ten,Gio Co Mat\n";
+            document.querySelectorAll('.log-item').forEach(row => {
+                csv += row.querySelector('strong').innerText + "," + row.querySelectorAll('span')[1].innerText + "\n";
+            });
+            const link = document.createElement("a");
+            link.href = encodeURI(csv);
+            link.download = `Bao_cao_nhan_su.csv`;
+            link.click();
+        }
+
+        // 6. Khởi chạy
+        async function main() {
+            statusText.innerText = "Đang nạp AI...";
+            await setupCam();
+            net = await mobilenet.load();
+            
+            try {
+                const res = await fetch('./face_data.json');
+                if (res.ok) {
+                    const json = await res.json();
+                    const ds = {};
+                    Object.keys(json).forEach(k => ds[k] = tf.tensor2d(json[k], [json[k].length/1024, 1024]));
+                    classifier.setClassifierDataset(ds);
+                    statusText.innerText = "✅ AI Sẵn sàng!";
+                }
+            } catch(e) { statusText.innerText = "⚠️ Chưa có bộ não. Hãy dạy AI!"; }
+
+            predict();
+        }
+
+        main();
+    </script>
 </body>
 </html>
