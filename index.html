@@ -168,13 +168,30 @@
 
         // Khởi động
         async function main() {
-            status.innerText = "Đang nạp bộ não AI...";
-            await setupCamera();
-            net = await mobilenet.load();
-            status.innerText = "Sẵn sàng! Hãy dạy mặt nhân viên.";
-            predict();
-        }
+    status.innerText = "Đang nạp bộ não AI...";
+    await setupCamera();
+    net = await mobilenet.load();
 
+    // --- ĐOẠN NẠP DỮ LIỆU TỰ ĐỘNG ---
+    try {
+        status.innerText = "Đang tải dữ liệu nhân sự...";
+        const response = await fetch('./face_data.json');
+        const datasetJson = await response.json();
+        
+        const dataset = {};
+        Object.keys(datasetJson).forEach((key) => {
+            dataset[key] = tf.tensor2d(datasetJson[key], [datasetJson[key].length / 1024, 1024]);
+        });
+        
+        classifier.setClassifierDataset(dataset);
+        status.innerText = "✅ Hệ thống đã sẵn sàng!";
+    } catch (err) {
+        status.innerText = "⚠️ Chưa có dữ liệu. Hãy dạy AI rồi lưu file!";
+    }
+    // -------------------------------
+
+    predict();
+}
         main();
     </script>
 </body>
