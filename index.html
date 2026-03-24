@@ -187,14 +187,28 @@
 
         // 5. Lưu & Xuất
         function saveDataset() {
-            const ds = classifier.getClassifierDataset();
-            const obj = {};
-            Object.keys(ds).forEach(k => obj[k] = Array.from(ds[k].dataSync()));
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(new Blob([JSON.stringify(obj)], {type:"application/json"}));
-            a.download = "face_data.json";
-            a.click();
-        }
+    // 1. Lấy tên từ ô Input
+    const staffName = document.getElementById('staff-name').value.trim();
+    
+    // 2. Nếu ô tên trống, dùng tên mặc định, nếu có tên thì dùng tên đó
+    const fileName = staffName ? `${staffName}.json` : "face_data.json";
+
+    const ds = classifier.getClassifierDataset();
+    if (Object.keys(ds).length === 0) {
+        alert("Chưa có dữ liệu để lưu! Hãy dạy AI trước.");
+        return;
+    }
+
+    const obj = {};
+    Object.keys(ds).forEach(k => obj[k] = Array.from(ds[k].dataSync()));
+    
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(obj)], {type:"application/json"}));
+    a.download = fileName; // File tải về sẽ có tên bạn nhập
+    a.click();
+    
+    statusText.innerText = `💾 Đã xuất file: ${fileName}`;
+}
 
         function exportExcel() {
             let csv = "data:text/csv;charset=utf-8,Ho Ten,Gio Co Mat\n";
