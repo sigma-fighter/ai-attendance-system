@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Attendance Pro</title>
+    <title>AI Attendance System</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier"></script>
@@ -63,36 +63,36 @@
 
     <div id="video-container">
         <video autoplay playsinline muted id="video"></video>
-        <div class="res-box"><div id="result">ĐANG QUÉT...</div></div>
+        <div class="res-box"><div id="result">Scanning....</div></div>
     </div>
 
     <div id="panel-admin" class="overlay-panel">
         <span class="close-btn" onclick="closePanels()">✕</span>
-        <h2>⚙️ Quản lý nhân sự</h2>
-        <p id="status" style="color: #f1c40f;">Đang nạp AI...</p>
-        <input type="text" id="staff-name" placeholder="Nhập tên nhân viên...">
-        <button onclick="train()" style="width:100%; padding:15px; background:var(--p); border:none; border-radius:12px; color:white; font-weight:bold;">📸 DẠY KHUÔN MẶT</button>
-        <button onclick="saveDataset()" style="width:100%; padding:15px; background:var(--s); border:none; border-radius:12px; color:white; font-weight:bold; margin-top:10px;">💾 LƯU BỘ NÃO</button>
+        <h2>Manage Staff</h2>
+        <p id="status" style="color: #f1c40f;">Loading AI....</p>
+        <input type="text" id="staff-name" placeholder="Staff name....">
+        <button onclick="train()" style="width:100%; padding:15px; background:var(--p); border:none; border-radius:12px; color:white; font-weight:bold;">Learning Face</button>
+        <button onclick="saveDataset()" style="width:100%; padding:15px; background:var(--s); border:none; border-radius:12px; color:white; font-weight:bold; margin-top:10px;">Save Memory</button>
     </div>
 
     <div id="panel-log" class="overlay-panel">
         <span class="close-btn" onclick="closePanels()">✕</span>
-        <h2>🕒 Nhật ký chấm công</h2>
+        <h2>Attendance Log</h2>
         <div id="log-list"></div>
     </div>
 
     <nav class="bottom-nav">
         <div class="nav-item" onclick="switchCam()">
-            <span class="nav-icon">🔄</span><span>Đổi Cam</span>
+            <span class="nav-icon">Change Camera</span>
         </div>
         <div class="nav-item" onclick="openPanel('panel-log')">
-            <span class="nav-icon">📋</span><span>Nhật ký</span>
+            <span class="nav-icon">Log</span>
         </div>
         <div class="nav-item" onclick="exportExcel()">
-            <span class="nav-icon">📊</span><span>Xuất Excel</span>
+            <span class="nav-icon">Export to Excel</span>
         </div>
         <div class="nav-item" onclick="openPanel('panel-admin')">
-            <span class="nav-icon">⚙️</span><span>Cài đặt</span>
+            <span class="nav-icon">Settings</span>
         </div>
     </nav>
 
@@ -130,7 +130,7 @@
                 });
             } catch (err) {
                 console.error("Lỗi cam:", err);
-                alert("Không thể mở Camera. Vui lòng cấp quyền!");
+                alert("The camera cannot be opened. Please grant permission!");
             }
         }
 
@@ -138,9 +138,9 @@
         async function switchCam() {
             closePanels(); // Đảm bảo đóng các bảng để thấy cam
             currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
-            resultLabel.innerText = "ĐANG ĐỔI CAM...";
+            resultLabel.innerText = "Switching camera....";
             await setupCam();
-            resultLabel.innerText = "ĐANG QUÉT...";
+            resultLabel.innerText = "Scanning....";
         }
 
         // 3. Quản lý giao diện
@@ -157,7 +157,7 @@
             const name = document.getElementById('staff-name').value || "Ẩn danh";
             const activation = net.infer(video, true);
             classifier.addExample(activation, name);
-            statusText.innerText = `✅ Đã học mặt: ${name}`;
+            statusText.innerText = `Memory booted: ${name}`;
         }
 
         async function predict() {
@@ -168,7 +168,7 @@
                     resultLabel.innerText = res.label;
                     recordAttendance(res.label);
                 } else {
-                    resultLabel.innerText = "ĐANG QUÉT...";
+                    resultLabel.innerText = "Scanning....";
                 }
             }
             requestAnimationFrame(predict);
@@ -195,7 +195,7 @@
 
     const ds = classifier.getClassifierDataset();
     if (Object.keys(ds).length === 0) {
-        alert("Chưa có dữ liệu để lưu! Hãy dạy AI trước.");
+        alert("No data to save yet! Please train the AI ​​first.");
         return;
     }
 
@@ -207,36 +207,36 @@
     a.download = fileName; // File tải về sẽ có tên bạn nhập
     a.click();
     
-    statusText.innerText = `💾 Đã xuất file: ${fileName}`;
+    statusText.innerText = `File exported: ${fileName}`;
 }
 
         function exportExcel() {
-            let csv = "data:text/csv;charset=utf-8,Ho Ten,Gio Co Mat\n";
+            let csv = "data:text/csv;charset=utf-8,        Name        |   Time    \n";
             document.querySelectorAll('.log-item').forEach(row => {
                 csv += row.querySelector('strong').innerText + "," + row.querySelectorAll('span')[1].innerText + "\n";
             });
             const link = document.createElement("a");
             link.href = encodeURI(csv);
-            link.download = `Bao_cao_nhan_su.csv`;
+            link.download = `Staff_report.csv`;
             link.click();
         }
 
         // 6. Khởi chạy
         async function main() {
-            statusText.innerText = "Đang nạp AI...";
+            statusText.innerText = "Loading AI.....";
             await setupCam();
             net = await mobilenet.load();
             
             try {
-                const res = await fetch('./face_data.json');
+                const res = await fetch('./Staff_report.json');
                 if (res.ok) {
                     const json = await res.json();
                     const ds = {};
                     Object.keys(json).forEach(k => ds[k] = tf.tensor2d(json[k], [json[k].length/1024, 1024]));
                     classifier.setClassifierDataset(ds);
-                    statusText.innerText = "✅ AI Sẵn sàng!";
+                    statusText.innerText = "AI Ready";
                 }
-            } catch(e) { statusText.innerText = "⚠️ Chưa có bộ não. Hãy dạy AI!"; }
+            } catch(e) { statusText.innerText = "No data to save yet! Please train the AI ​​first."; }
 
             predict();
         }
